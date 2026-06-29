@@ -1,0 +1,13 @@
+{
+  "display_name": "NPC 自主性导演",
+  "loading_order": 35,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "OpenAI Codex",
+  "version": "0.1.0",
+  "homePage": "https://docs.sillytavern.app/extensions/regex/",
+  "auto_update": false,
+  "minimum_client_version": "1.12.13"
+}
