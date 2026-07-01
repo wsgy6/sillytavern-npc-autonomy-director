@@ -1,8 +1,6 @@
-#npc-autonomy-director-panel {
+﻿#npc-autonomy-director-panel {
   margin-top: 12px;
 }
-
-
 
 .npc-autonomy-director-content {
   padding-top: 10px;
@@ -33,7 +31,9 @@
 }
 
 .npcad-pill-row,
-.npcad-button-row {
+.npcad-button-row,
+.npcad-inline-input-row,
+.npcad-float-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -62,7 +62,8 @@
 .npcad-field label,
 .npcad-form-row label,
 .npcad-summary-title,
-.npcad-progress-label {
+.npcad-progress-label,
+.npcad-modal-subtitle {
   display: block;
   font-size: 12px;
   color: var(--grey70, #c5c5c5);
@@ -72,7 +73,8 @@
 .npcad-value,
 .npcad-summary-box,
 .npcad-history-item,
-.npcad-empty {
+.npcad-empty,
+.npcad-action-format-box {
   border-radius: 10px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.04);
@@ -102,7 +104,8 @@
   background: linear-gradient(90deg, var(--SmartThemeQuoteColor, #7a5cff), #48cfff);
 }
 
-.npcad-summary-grid {
+.npcad-summary-grid,
+.npcad-modal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
@@ -122,7 +125,9 @@
 
 .npcad-form-row input[type='text'],
 .npcad-form-row input[type='number'],
-.npcad-form-row textarea {
+.npcad-form-row textarea,
+.npcad-form-row select,
+.npcad-inline-input-row input[type='text'] {
   width: 100%;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -141,25 +146,225 @@
   gap: 8px;
 }
 
-.npcad-history-head {
+.npcad-history-head,
+.npcad-modal-head,
+.npcad-float-head {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 12px;
-  margin-bottom: 6px;
+  align-items: flex-start;
 }
 
 .npcad-history-head span {
   color: var(--grey70, #c5c5c5);
 }
 
+.npcad-role-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.npcad-role-chip,
+.npcad-modal-role,
+.npcad-float-item,
+.npcad-float-title,
+.npcad-icon-button {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+}
+
+.npcad-role-chip,
+.npcad-float-item,
+.npcad-modal-role {
+  border-radius: 12px;
+  padding: 10px;
+  text-align: left;
+}
+
+.npcad-role-chip.is-active,
+.npcad-modal-role.is-active {
+  border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #7a5cff) 60%, white 20%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--SmartThemeQuoteColor, #7a5cff) 35%, transparent);
+}
+
+.npcad-role-chip-meta,
+.npcad-modal-role-meta,
+.npcad-float-item-name {
+  display: block;
+  font-size: 12px;
+  color: var(--grey70, #c5c5c5);
+}
+
+.npcad-inline-input-row {
+  align-items: center;
+}
+
+.npcad-inline-input-row input {
+  flex: 1;
+}
+
+.npcad-stage-textarea {
+  min-height: 120px;
+}
+
+#npc-autonomy-director-float {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 4200;
+}
+
+.npcad-float {
+  width: min(var(--npcad-float-width, 360px), calc(100vw - 24px));
+  height: min(var(--npcad-float-height, 280px), calc(100vh - 24px));
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--SmartThemeQuoteColor, #7a5cff) 24%, transparent);
+  background: color-mix(in srgb, rgba(16, 16, 24, 0.92) 84%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+  user-select: none;
+}
+
+.npcad-float.is-collapsed .npcad-float-body {
+  display: none;
+}
+
+.npcad-float-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--grey70, #c5c5c5);
+}
+
+.npcad-float.is-context-collapsed .npcad-float-body {
+  display: none;
+}
+
+.npcad-float.is-context-collapsed .npcad-float-actions .npcad-icon-button {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.npcad-float-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--grey70, #c5c5c5);
+}
+
+.npcad-float-title {
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.npcad-icon-button {
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.npcad-float-body {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  min-height: var(--npcad-float-body-height, 120px);
+  max-height: min(var(--npcad-float-body-height, 120px), var(--npcad-float-max-height, 50vh));
+  overflow: auto;
+}
+
+.npcad-float-item.is-active {
+  border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #7a5cff) 60%, white 20%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--SmartThemeQuoteColor, #7a5cff) 35%, transparent);
+}
+
+.npcad-float-item-action,
+.npcad-modal-role-action {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+#npc-autonomy-director-modal .npcad-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4300;
+  background: rgba(0, 0, 0, 0.56);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+#npc-autonomy-director-modal .npcad-modal-backdrop.is-hidden {
+  display: none;
+}
+
+.npcad-modal {
+  width: min(960px, 100%);
+  max-height: min(86vh, 960px);
+  overflow: auto;
+  border-radius: 18px;
+  padding: 16px;
+  background: color-mix(in srgb, rgba(16, 16, 24, 0.96) 86%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+}
+
+.npcad-modal-role-name {
+  font-weight: 700;
+}
+
 @media (max-width: 768px) {
   .npcad-summary-grid,
-  .npcad-grid {
+  .npcad-grid,
+  .npcad-modal-grid {
     grid-template-columns: 1fr;
   }
 
-  .npcad-history-head {
+  .npcad-history-head,
+  .npcad-modal-head,
+  .npcad-float-head,
+  .npcad-inline-input-row {
     flex-direction: column;
   }
+
+  #npc-autonomy-director-float {
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+  }
+
+  .npcad-float {
+    width: 100%;
+  }
+
+  #npc-autonomy-director-modal .npcad-modal-backdrop {
+    padding: 12px;
+  }
+}
+
+.npcad-resize-handle {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888'%3E%3Cpath d='M14 12l-2-2c.5-.6.8-1.3.8-2.2 0-1.8-1.2-3.2-3-3.5V4c2.2.3 4 2.1 4 4.8 0 1.1-.4 2.1-1 2.9l-1.8 2.3zM10 10l-2-2c.6-.6.8-1.3.8-2.2 0-1.8-1.2-3.2-3-3.5V4c2.2.3 4 2.1 4 4.8 0 1.1-.4 2.1-1 2.9l-1.8 2.3zM6 6L4 4c.6-.6.8-1.3.8-2.2C4.8.5 3.6-.9 1.8-1.2V-3c2.2.3 4 2.1 4 4.8 0 1.1-.4 2.1-1 2.9L6 6z'/%3E%3C/svg%3E");
+  background-size: contain;
+}
+
+.npcad-resize-handle:hover {
+  opacity: 0.8;
+}
+
+.npcad-float {
+  position: relative;
 }
