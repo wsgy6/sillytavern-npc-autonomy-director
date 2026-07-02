@@ -218,6 +218,7 @@
 }
 
 .npcad-float {
+  position: relative;
   width: min(var(--npcad-float-width, 360px), calc(100vw - 24px));
   height: min(var(--npcad-float-height, 280px), calc(100vh - 24px));
   border-radius: 16px;
@@ -365,6 +366,3 @@
   opacity: 0.8;
 }
 
-.npcad-float {
-  position: relative;
-}
