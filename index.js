@@ -1,4 +1,4 @@
-/* global window, document, localStorage, fetch, AbortController, setTimeout, clearTimeout, toastr, jQuery, $, console */
+﻿/* global window, document, localStorage, fetch, AbortController, setTimeout, clearTimeout, toastr, jQuery, $, console */
 
 const MODULE_NAME = 'npcAutonomyDirector';
 const PANEL_ID = 'npc-autonomy-director-panel';
@@ -2650,7 +2650,17 @@ function interceptFloatEvents() {
   floatRoot.addEventListener('click', event => event.stopPropagation(), true);
   floatRoot.addEventListener('pointerdown', event => event.stopPropagation(), true);
   floatRoot.addEventListener('pointerup', event => event.stopPropagation(), true);
-}\nfunction bindPanelEvents() {
+}
+
+
+function interceptModalEvents() {
+  const modalRoot = document.getElementById(FLOAT_MODAL_ID);
+  if (!modalRoot) return;
+  modalRoot.addEventListener('click', event => event.stopPropagation(), true);
+  modalRoot.addEventListener('pointerdown', event => event.stopPropagation(), true);
+}
+
+function bindPanelEvents() {
   $(document).off('.npcad');
   $(document).off('.npcad-drag');
   $(document).off('.npcad-resize');
@@ -2879,7 +2889,7 @@ function buildStatusText(role) {
     `当前行动：${role.currentAction || '暂无记录'}`,
     `外观进度：${role.appearanceProgress}%`,
     `行为进度：${role.behaviorProgress}%`,
-  ].join('\\n');
+  ].join('\n');
 }
 
 function registerSlashCommands() {
