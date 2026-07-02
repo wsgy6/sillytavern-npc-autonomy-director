@@ -2295,13 +2295,28 @@ function getFloatCssVars(settings = getSettings()) {
 
 // 返回定位样式，用于外层容器 #npc-autonomy-director-float
 // 必须内联 position:fixed 和 z-index，防止 CSS 文件延迟加载导致容器不可见
+//
+// 重要：SillyTavern 在 <html> 上设置了 perspective:1000px，
+// 这会创建一个新的 position:fixed 包含块，导致 right/bottom 定位
+// 相对于 <html> 而非视口。因此一律使用 JS 计算的 left/top 像素值，
+// 绝不依赖 CSS 的 right/bottom 属性。
 function getFloatContainerStyle(settings = getSettings()) {
   const position = getFloatPosition();
-  const posStyle = (position && typeof position.x === 'number' && typeof position.y === 'number')
-    ? `left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`
-    : 'left:auto; top:auto; right:18px; bottom:18px;';
-  const result = `position:fixed; z-index:4200; ${posStyle}`;
-  console.trace('[NAD-DEBUG] getFloatContainerStyle() 返回 cssText:', result, 'position:', position);
+  if (position && typeof position.x === 'number' && typeof position.y === 'number') {
+    const result = `position:fixed; z-index:4200; left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`;
+    console.trace('[NAD-DEBUG] getFloatContainerStyle() 恢复已保存位置:', result, 'position:', position);
+    return result;
+  }
+  // 无保存位置 → 默认右下角：用 JS 基于 window 尺寸计算 left/top 像素值
+  const panelWidth = 360;
+  const panelHeight = 280;
+  const left = Math.max(0, window.innerWidth - panelWidth - 18);
+  const top = Math.max(0, window.innerHeight - panelHeight - 18);
+  const result = `position:fixed; z-index:4200; left:${left}px; top:${top}px; right:auto; bottom:auto;`;
+  console.trace('[NAD-DEBUG] getFloatContainerStyle() 默认右下角定位:', result,
+    '\n  window:', window.innerWidth, 'x', window.innerHeight,
+    '\n  计算 left:', window.innerWidth, '-', panelWidth, '- 18 =', left,
+    '\n  计算 top:', window.innerHeight, '-', panelHeight, '- 18 =', top);
   return result;
 }
 
@@ -2324,7 +2339,7 @@ function ensureFloatMount() {
     root.id = FLOAT_PANEL_ID;
     // 设置默认内联样式，确保即使 CSS 文件延迟加载容器也有基本定位
     root.__nadInternalUpdate = true;
-    root.style.cssText = 'position:fixed; z-index:4200; right:18px; bottom:18px;';
+    root.style.cssText = 'position:fixed; z-index:4200; left:18px; top:18px; right:auto; bottom:auto;';
     setTimeout(() => { root.__nadInternalUpdate = false; }, 0);
     console.trace('[NAD-DEBUG] ensureFloatMount() 创建新元素，cssText=', root.style.cssText);
     document.body.append(root);
@@ -2480,10 +2495,11 @@ async function renderFloatingWidgets() {
       // 诊断：检查 fixed 定位的包含块是否被祖先元素的 CSS 属性破坏
       setTimeout(() => {
         const rect = floatRoot.getBoundingClientRect();
-        const expectedRight = parseFloat(floatRoot.style.right) || 18;
-        const expectedBottom = parseFloat(floatRoot.style.bottom) || 18;
-        const expectedLeft = window.innerWidth - expectedRight - rect.width;
-        const expectedTop = window.innerHeight - expectedBottom - rect.height;
+        // 修复后 style 中始终有显式 left/top 像素值
+        const styleLeft = parseFloat(floatRoot.style.left);
+        const styleTop = parseFloat(floatRoot.style.top);
+        const expectedLeft = Number.isFinite(styleLeft) ? styleLeft : window.innerWidth - 360 - 18;
+        const expectedTop = Number.isFinite(styleTop) ? styleTop : window.innerHeight - 280 - 18;
         const leftDrift = rect.left - expectedLeft;
         const topDrift = rect.top - expectedTop;
         if (Math.abs(leftDrift) > 2 || Math.abs(topDrift) > 2) {
@@ -2494,7 +2510,12 @@ async function renderFloatingWidgets() {
             '\n  开始检查祖先元素的 containing block 破坏属性...');
 
           // 检查祖先元素是否破坏了 fixed 定位的包含块
-          const BREAKING_PROPS = ['transform', 'filter', 'backdropFilter', 'willChange', 'contain', 'perspective', 'translate', 'rotate', 'scale', 'offset'];
+          // 真正会创建新的 fixed 包含块的 CSS 属性：
+          // transform(非identity), filter, backdrop-filter, perspective,
+          // will-change 引用上述属性, contain(paint|layout|strict|content)
+          const BREAKING_PROPS = ['transform', 'filter', 'backdropFilter', 'willChange', 'contain', 'perspective'];
+          // identity matrix 匹配（含空格）
+          const IDENTITY_MATRIX = /^matrix\(\s*1\s*,\s*0\s*,\s*0\s*,\s*1\s*,\s*0\s*,\s*0\s*\)$/;
           let el = floatRoot.parentElement;
           let depth = 0;
           while (el && depth < 20) {
@@ -2502,11 +2523,14 @@ async function renderFloatingWidgets() {
             const breakers = [];
             for (const prop of BREAKING_PROPS) {
               let val = cs[prop];
-              if (val && val !== 'none' && val !== 'auto' && val !== 'normal') {
-                if (prop === 'transform' && (val === 'none' || val.startsWith('matrix(1,0,0,1,0,0)'))) continue;
-                if (prop === 'willChange' && val === 'auto') continue;
-                breakers.push(`  ${prop}: ${val}`);
-              }
+              if (!val || val === 'none' || val === 'auto' || val === 'normal') continue;
+              // transform: 跳过 identity matrix
+              if (prop === 'transform' && IDENTITY_MATRIX.test(val)) continue;
+              // will-change: 只关心引用了上述破坏属性
+              if (prop === 'willChange' && val === 'auto') continue;
+              // contain: 只关心 strict/content/layout/paint
+              if (prop === 'contain' && !/\b(strict|content|paint|layout)\b/.test(val)) continue;
+              breakers.push(`  ${prop}: ${val}`);
             }
             if (breakers.length) {
               console.warn('[NAD-DEBUG]   祖先[' + depth + '] <' + el.tagName.toLowerCase()
