@@ -2218,7 +2218,7 @@ function ensureFloatMount() {
   }
   return root;
 }
-    document.body.append(root);
+
 function ensureModalMount() {
   let root = document.getElementById(FLOAT_MODAL_ID);
   if (!root) {
