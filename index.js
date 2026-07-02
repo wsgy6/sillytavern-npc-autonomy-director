@@ -13,7 +13,7 @@ const FLOAT_SIZE_KEY = 'npcAutonomyDirector.floatSize';
 const ACTION_BLOCK_OPEN = '<npcad-actions>';
 const ACTION_BLOCK_CLOSE = '</npcad-actions>';
 const GOAL_AI_TASKS = new Map();
-const GOAL_AI_TASK_TTL_MS = 15000;
+const GOAL_AI_TASK_TTL_MS = 60000;
 const GOAL_AI_TIMEOUT_MS = 20000;
 const GOAL_REEVAL_THRESHOLD = 70;
 const MAX_STORY_SUMMARY_CHARS = 1500;
@@ -1243,6 +1243,27 @@ async function callExternalAi(role, ids, phase, settings, ctx) {
       return goal;
     }
 
+
+    // 如果第一次返回空，可能是网络抖动或格式异常，重试一次
+    console.debug('[NPC 自主导演] AI 返回为空，尝试重试...');
+    try {
+      const retryResp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+        signal: controller.signal,
+      });
+      if (retryResp.ok) {
+        const retryData = await retryResp.json().catch(() => null);
+        const retryText = retryData?.choices?.[0]?.message?.content || '';
+        const retryGoal = sanitizeGoalText(retryText);
+        if (retryGoal) {
+          return retryGoal;
+        }
+      }
+    } catch (retryError) {
+      console.debug('[NPC 自主导演] 重试也失败了:', retryError?.message || retryError);
+    }
     console.warn('[NPC 自主导演] 外部 AI 返回目标不可用，改用模板目标。原始响应:', aiText);
     return '';
   } catch (error) {
@@ -2191,14 +2212,22 @@ function ensureFloatMount() {
     root.id = FLOAT_PANEL_ID;
     document.body.append(root);
   }
+  // 确保元素仍在 body 中（可能被 ST 内部机制移除了）
+  if (!root.parentElement) {
+    document.body.append(root);
+  }
   return root;
 }
-
+    document.body.append(root);
 function ensureModalMount() {
   let root = document.getElementById(FLOAT_MODAL_ID);
   if (!root) {
     root = document.createElement('div');
     root.id = FLOAT_MODAL_ID;
+    document.body.append(root);
+  }
+  // 确保元素仍在 body 中（可能被 ST 内部机制移除了）
+  if (!root.parentElement) {
     document.body.append(root);
   }
   return root;
@@ -2615,7 +2644,13 @@ function endResizeFloat() {
 
 
 
-function bindPanelEvents() {
+function interceptFloatEvents() {
+  const floatRoot = document.getElementById(FLOAT_PANEL_ID);
+  if (!floatRoot) return;
+  floatRoot.addEventListener('click', event => event.stopPropagation(), true);
+  floatRoot.addEventListener('pointerdown', event => event.stopPropagation(), true);
+  floatRoot.addEventListener('pointerup', event => event.stopPropagation(), true);
+}\nfunction bindPanelEvents() {
   $(document).off('.npcad');
   $(document).off('.npcad-drag');
   $(document).off('.npcad-resize');
@@ -2781,6 +2816,10 @@ async function handleMessageReceived(messageId) {
 
   const originalText = getMessageText(message);
   const { actions, hasBlock, unmatched } = parseActionBlock(originalText, roles);
+  // 调试：如果检测到了行动块但没有匹配到任何角色，输出原文便于排查
+  if (hasBlock && Object.keys(actions).length === 0) {
+    console.debug('[NPC 自主导演] 检测到行动块但未匹配角色，原文:', originalText?.slice(0, 300));
+  }
   let nextState = state;
 
   if (Object.keys(actions).length) {
@@ -2811,7 +2850,7 @@ async function handleMessageReceived(messageId) {
   }
 
   if (unmatched.length) {
-    toastr.warning(unmatched.join('；'), 'NPC 自主导演');
+    toastr.warning(unmatched.join('，'), 'NPC 自主导演');
   }
 
   await syncPrompt();
@@ -2934,6 +2973,8 @@ async function bootstrap() {
   bindPanelEvents();
   registerSlashCommands();
   wireEvents();
+  interceptFloatEvents();
+  interceptModalEvents();
 }
 
 jQuery(() => {
