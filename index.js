@@ -2232,6 +2232,10 @@ function getFloatPosition() {
     if (!parsed || typeof parsed.x !== 'number' || typeof parsed.y !== 'number') {
       return null;
     }
+    // 排除 NaN、Infinity、负数等非法坐标
+    if (!Number.isFinite(parsed.x) || !Number.isFinite(parsed.y) || parsed.x < 0 || parsed.y < 0) {
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -2289,11 +2293,19 @@ function getFloatCssVars(settings = getSettings()) {
 // 返回定位样式，用于外层容器 #npc-autonomy-director-float
 // 必须内联 position:fixed 和 z-index，防止 CSS 文件延迟加载导致容器不可见
 function getFloatContainerStyle(settings = getSettings()) {
+  const DEFAULT_FLOAT_STYLE = 'position:fixed; z-index:4200; left:auto; top:auto; right:18px; bottom:18px;';
   const position = getFloatPosition();
-  const posStyle = (position && typeof position.x === 'number' && typeof position.y === 'number')
-    ? `left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`
-    : 'left:auto; top:auto; right:18px; bottom:18px;';
-  return `position:fixed; z-index:4200; ${posStyle}`;
+  if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
+    return DEFAULT_FLOAT_STYLE;
+  }
+  // 使用 clampFloatPosition 对恢复的坐标做视口边界保护，
+  // 传入 null 作为元素引用，内部会使用默认宽高（360×120）计算边界
+  const clamped = clampFloatPosition(position.x, position.y, null);
+  if (!Number.isFinite(clamped.x) || !Number.isFinite(clamped.y) || clamped.x < 0 || clamped.y < 0) {
+    // 坐标异常（NaN / Infinity / 负数），直接回退到默认定位
+    return DEFAULT_FLOAT_STYLE;
+  }
+  return `position:fixed; z-index:4200; left:${clamped.x}px; top:${clamped.y}px; right:auto; bottom:auto;`;
 }
 
 function ensurePanelMount() {
@@ -2672,13 +2684,16 @@ function closeModal() {
 }
 
 function clampFloatPosition(x, y, element) {
+  // 防御：NaN / Infinity / 负数一律视为 0，后续由调用方决定是否回退到默认定位
+  const safeX = Number.isFinite(x) && x >= 0 ? x : 0;
+  const safeY = Number.isFinite(y) && y >= 0 ? y : 0;
   const width = element?.offsetWidth || 360;
   const height = element?.offsetHeight || 120;
   const maxX = Math.max(12, window.innerWidth - width - 12);
   const maxY = Math.max(12, window.innerHeight - height - 12);
   return {
-    x: clamp(Number(x) || 12, 12, maxX),
-    y: clamp(Number(y) || 12, 12, maxY),
+    x: clamp(safeX || 12, 12, maxX),
+    y: clamp(safeY || 12, 12, maxY),
   };
 }
 
