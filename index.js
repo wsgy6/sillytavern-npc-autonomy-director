@@ -2323,7 +2323,9 @@ function ensureFloatMount() {
     root = document.createElement('div');
     root.id = FLOAT_PANEL_ID;
     // 设置默认内联样式，确保即使 CSS 文件延迟加载容器也有基本定位
+    root.__nadInternalUpdate = true;
     root.style.cssText = 'position:fixed; z-index:4200; right:18px; bottom:18px;';
+    root.__nadInternalUpdate = false;
     console.trace('[NAD-DEBUG] ensureFloatMount() 创建新元素，cssText=', root.style.cssText);
     document.body.append(root);
   }
@@ -2465,7 +2467,9 @@ async function renderFloatingWidgets() {
       const prevBottom = floatRoot.style.bottom;
       floatRoot.innerHTML = html;
       // 定位样式作用于外层 position:fixed 容器，不作用于内层 position:relative 的 .npcad-float
+      floatRoot.__nadInternalUpdate = true;
       floatRoot.style.cssText = getFloatContainerStyle(settings);
+      floatRoot.__nadInternalUpdate = false;
       console.trace('[NAD-DEBUG] renderFloatingWidgets() 设置 cssText',
         '\n  设置前 cssText:', prevCssText,
         '\n  设置前 left/right/top/bottom:', prevLeft, prevRight, prevTop, prevBottom,
@@ -2736,10 +2740,12 @@ function updateFloatDrag(event) {
   const clamped = clampFloatPosition(nextX, nextY, floatPanel || container);
   const prevLeft = container.style.left;
   const prevTop = container.style.top;
+  container.__nadInternalUpdate = true;
   container.style.left = `${clamped.x}px`;
   container.style.top = `${clamped.y}px`;
   container.style.right = 'auto';
   container.style.bottom = 'auto';
+  container.__nadInternalUpdate = false;
   console.trace('[NAD-DEBUG] updateFloatDrag() 修改定位',
     '\n  修改前 left/top:', prevLeft, prevTop,
     '\n  nextX/Y:', nextX, nextY,
@@ -2812,16 +2818,25 @@ function interceptFloatEvents() {
     const observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.type === 'attributes' && m.attributeName === 'style') {
-          console.trace('[NAD-DEBUG] MutationObserver 检测到外部代码修改了 #npc-autonomy-director-float 的 style 属性!',
-            '\n  当前 cssText:', floatRoot.style.cssText,
-            '\n  当前 left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom,
-            '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight);
+          if (floatRoot.__nadInternalUpdate) {
+            // 我们的代码主动修改，记录概要
+            console.log('[NAD-DEBUG] MutationObserver: 内部修改 style',
+              '\n  cssText:', floatRoot.style.cssText,
+              '\n  left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom);
+          } else {
+            // 外部代码修改！打印完整调用栈
+            console.trace('[NAD-DEBUG] MutationObserver: ★★★ 外部代码修改了 style ★★★',
+              '\n  cssText:', floatRoot.style.cssText,
+              '\n  left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom,
+              '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight,
+              '\n  getBoundingClientRect():', (() => { const r = floatRoot.getBoundingClientRect(); return `${r.left},${r.top} ${r.width}x${r.height}`; })());
+          }
         }
       }
     });
     observer.observe(floatRoot, { attributes: true, attributeFilter: ['style'] });
     floatRoot.__nadStyleObserver = observer;
-    console.log('[NAD-DEBUG] MutationObserver 已挂载到 #npc-autonomy-director-float，监控 style 属性变更');
+    console.log('[NAD-DEBUG] MutationObserver 已挂载，内部修改显示概要，外部修改打印完整 trace');
   }
 }
 
