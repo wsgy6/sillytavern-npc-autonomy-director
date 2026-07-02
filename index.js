@@ -14,7 +14,7 @@ const ACTION_BLOCK_OPEN = '<npcad-actions>';
 const ACTION_BLOCK_CLOSE = '</npcad-actions>';
 const GOAL_AI_TASKS = new Map();
 const GOAL_AI_TASK_TTL_MS = 60000;
-const GOAL_AI_TIMEOUT_MS = 20000;
+const GOAL_AI_TIMEOUT_MS = 45000;
 const GOAL_REEVAL_THRESHOLD = 70;
 const MAX_STORY_SUMMARY_CHARS = 1500;
 const MAX_ROLES_IN_PROMPT = 6;
@@ -1245,21 +1245,28 @@ async function callExternalAi(role, ids, phase, settings, ctx) {
 
 
     // 如果第一次返回空，可能是网络抖动或格式异常，重试一次
+    // 重试必须使用新的 AbortController，因为原 controller 可能已经 abort
     console.debug('[NPC 自主导演] AI 返回为空，尝试重试...');
     try {
-      const retryResp = await fetch(url, {
-        method: 'POST',
-        headers,
-        body,
-        signal: controller.signal,
-      });
-      if (retryResp.ok) {
-        const retryData = await retryResp.json().catch(() => null);
-        const retryText = retryData?.choices?.[0]?.message?.content || '';
-        const retryGoal = sanitizeGoalText(retryText);
-        if (retryGoal) {
-          return retryGoal;
+      const retryController = new AbortController();
+      const retryTimeoutId = setTimeout(() => retryController.abort(), GOAL_AI_TIMEOUT_MS);
+      try {
+        const retryResp = await fetch(url, {
+          method: 'POST',
+          headers,
+          body,
+          signal: retryController.signal,
+        });
+        if (retryResp.ok) {
+          const retryData = await retryResp.json().catch(() => null);
+          const retryText = retryData?.choices?.[0]?.message?.content || '';
+          const retryGoal = sanitizeGoalText(retryText);
+          if (retryGoal) {
+            return retryGoal;
+          }
         }
+      } finally {
+        clearTimeout(retryTimeoutId);
       }
     } catch (retryError) {
       console.debug('[NPC 自主导演] 重试也失败了:', retryError?.message || retryError);
