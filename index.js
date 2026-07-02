@@ -1877,9 +1877,11 @@ async function advanceRole(role, reason = 'auto', options = {}) {
 function applyRoleAction(role, actionText, source = 'llm') {
   const detail = String(actionText || '').trim();
   if (!detail) {
+    console.log('[NAD-ACTION] applyRoleAction 跳过（actionText 为空），角色:', role.name);
     return role;
   }
 
+  console.log('[NAD-ACTION] applyRoleAction 设置 currentAction，角色:', role.name, '→', detail.slice(0, 80));
   return {
     ...role,
     currentAction: detail,
@@ -2971,13 +2973,22 @@ async function handleMessageReceived(messageId) {
 
   const originalText = getMessageText(message);
   const { actions, hasBlock, unmatched } = parseActionBlock(originalText, roles);
-  // 调试：如果检测到了行动块但没有匹配到任何角色，输出原文便于排查
+  console.log('[NAD-ACTION] handleMessageReceived 消息分析:',
+    '\n  hasBlock:', hasBlock,
+    '\n  actions keys:', Object.keys(actions),
+    '\n  unmatched:', unmatched,
+    '\n  roles:', roles.map(r => `${r.id}(${r.name})`).join(', '),
+    '\n  originalText 前200字:', originalText?.slice(0, 200));
   if (hasBlock && Object.keys(actions).length === 0) {
-    console.debug('[NPC 自主导演] 检测到行动块但未匹配角色，原文:', originalText?.slice(0, 300));
+    console.warn('[NAD-ACTION] 检测到行动块但未匹配角色，原文:', originalText?.slice(0, 500));
   }
   let nextState = state;
 
   if (Object.keys(actions).length) {
+    console.log('[NAD-ACTION] 路径A：有匹配的行动数据，开始处理...');
+    for (const [roleId, actionText] of Object.entries(actions)) {
+      console.log('[NAD-ACTION]   角色', roleId, '→ 行动:', actionText?.slice(0, 80));
+    }
     // 路径 A：有匹配的行动数据
     // 被匹配到的角色：完整处理（行动反馈 + 目标推进）
     // 未被匹配到的启用角色：至少推进回合计数、外观/行为进度
@@ -2994,17 +3005,18 @@ async function handleMessageReceived(messageId) {
       })),
     }));
   } else if (hasBlock) {
+    console.warn('[NAD-ACTION] 路径B：有<npcad-actions>块但未匹配到角色');
     nextState = await updateState(async currentState => ({
       ...currentState,
       roles: await Promise.all(currentState.roles.map(role => (role.enabled ? advanceRole(role, 'auto') : Promise.resolve(role)))),
     }));
     toastr.warning('检测到行动块，但未匹配到任何启用角色，已改为推进所有启用角色。', 'NPC 自主导演');
   } else {
+    console.log('[NAD-ACTION] 路径C：未检测到<npcad-actions>块，仅推进回合');
     nextState = await updateState(async currentState => ({
       ...currentState,
       roles: await Promise.all(currentState.roles.map(role => (role.enabled ? advanceRole(role, 'auto') : Promise.resolve(role)))),
     }));
-    console.debug('[NPC 自主导演] 未检测到行动块，已推进所有启用角色。');
   }
   if (hasBlock && settings.hideActionBlockFromMessage) {
     setMessageText(message, stripActionBlock(originalText));
