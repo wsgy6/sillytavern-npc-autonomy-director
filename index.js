@@ -2287,12 +2287,13 @@ function getFloatCssVars(settings = getSettings()) {
 }
 
 // 返回定位样式，用于外层容器 #npc-autonomy-director-float
+// 必须内联 position:fixed 和 z-index，防止 CSS 文件延迟加载导致容器不可见
 function getFloatContainerStyle(settings = getSettings()) {
   const position = getFloatPosition();
-  if (position && typeof position.x === 'number' && typeof position.y === 'number') {
-    return `left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`;
-  }
-  return 'left:auto; top:auto; right:18px; bottom:18px;';
+  const posStyle = (position && typeof position.x === 'number' && typeof position.y === 'number')
+    ? `left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`
+    : 'left:auto; top:auto; right:18px; bottom:18px;';
+  return `position:fixed; z-index:4200; ${posStyle}`;
 }
 
 function ensurePanelMount() {
@@ -2312,6 +2313,8 @@ function ensureFloatMount() {
   if (!root) {
     root = document.createElement('div');
     root.id = FLOAT_PANEL_ID;
+    // 设置默认内联样式，确保即使 CSS 文件延迟加载容器也有基本定位
+    root.style.cssText = 'position:fixed; z-index:4200; right:18px; bottom:18px;';
     document.body.append(root);
   }
   // 确保元素仍在 body 中（可能被 ST 内部机制移除了）
@@ -2344,6 +2347,8 @@ function createFloatingHtml(state = ensureState(), settings = getSettings()) {
   if (!roles.length) {
     return '';
   }
+
+  console.debug('[NPC 自主导演] 渲染悬浮窗：%d 个启用角色', roles.length);
 
   const { collapsed, autoCollapsed } = getFloatEffectiveState(settings);
   const visibleItems = clamp(Number(settings.floatingWindowItems) || DEFAULT_SETTINGS.floatingWindowItems, 1, 12);
@@ -2440,9 +2445,15 @@ async function renderFloatingWidgets() {
   const floatRoot = ensureFloatMount();
   const modalRoot = ensureModalMount();
   if (floatRoot) {
-    floatRoot.innerHTML = createFloatingHtml(state, settings);
-    // 定位样式作用于外层 position:fixed 容器，不作用于内层 position:relative 的 .npcad-float
-    floatRoot.style.cssText = getFloatContainerStyle(settings);
+    const html = createFloatingHtml(state, settings);
+    if (html) {
+      floatRoot.innerHTML = html;
+      // 定位样式作用于外层 position:fixed 容器，不作用于内层 position:relative 的 .npcad-float
+      floatRoot.style.cssText = getFloatContainerStyle(settings);
+    } else {
+      console.debug('[NPC 自主导演] 悬浮窗 HTML 为空（floatingWindowEnabled=%s, enabledRoles=%d）',
+        settings.floatingWindowEnabled, state.roles.filter(r => r.enabled).length);
+    }
   }
   if (modalRoot) {
     modalRoot.innerHTML = createModalHtml(state);
