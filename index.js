@@ -1566,6 +1566,12 @@ async function syncPrompt() {
   }
   try {
     ctx.setExtensionPrompt(PROMPT_KEY, promptText, Number(settings.promptDepth) || DEFAULT_SETTINGS.promptDepth);
+    // 诊断：检查 actionReportEnabled 和提示词中是否包含行动块指令
+    const hasActionInstr = promptText.includes(ACTION_BLOCK_OPEN);
+    console.log('[NAD-ACTION] syncPrompt 已注入提示词 (depth=' + (Number(settings.promptDepth) || DEFAULT_SETTINGS.promptDepth) + ')',
+      '\n  actionReportEnabled:', settings.actionReportEnabled,
+      '\n  提示词包含<npcad-actions>指令:', hasActionInstr,
+      '\n  提示词长度:', promptText.length);
   } catch (error) {
     console.error('[NPC 多角色自主性导演] 提示词注入失败', error);
   }
