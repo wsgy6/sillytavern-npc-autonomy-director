@@ -1308,6 +1308,11 @@ async function generateGoal(role, phase) {
 
   try {
     const settings = getSettings();
+    console.log("[NPC]", {
+    externalAiEnabled: settings.externalAiEnabled,
+    externalAiBaseUrl: settings.externalAiBaseUrl,
+    externalAiModel: settings.externalAiModel,
+});
     const ctx = getContextSafe();
 
     if (settings.externalAiEnabled && settings.externalAiBaseUrl) {
