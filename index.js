@@ -2325,7 +2325,7 @@ function ensureFloatMount() {
     // 设置默认内联样式，确保即使 CSS 文件延迟加载容器也有基本定位
     root.__nadInternalUpdate = true;
     root.style.cssText = 'position:fixed; z-index:4200; right:18px; bottom:18px;';
-    root.__nadInternalUpdate = false;
+    setTimeout(() => { root.__nadInternalUpdate = false; }, 0);
     console.trace('[NAD-DEBUG] ensureFloatMount() 创建新元素，cssText=', root.style.cssText);
     document.body.append(root);
   }
@@ -2469,13 +2469,58 @@ async function renderFloatingWidgets() {
       // 定位样式作用于外层 position:fixed 容器，不作用于内层 position:relative 的 .npcad-float
       floatRoot.__nadInternalUpdate = true;
       floatRoot.style.cssText = getFloatContainerStyle(settings);
-      floatRoot.__nadInternalUpdate = false;
+      setTimeout(() => { floatRoot.__nadInternalUpdate = false; }, 0);
       console.trace('[NAD-DEBUG] renderFloatingWidgets() 设置 cssText',
         '\n  设置前 cssText:', prevCssText,
         '\n  设置前 left/right/top/bottom:', prevLeft, prevRight, prevTop, prevBottom,
         '\n  设置后 cssText:', floatRoot.style.cssText,
         '\n  设置后 left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom,
         '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight);
+
+      // 诊断：检查 fixed 定位的包含块是否被祖先元素的 CSS 属性破坏
+      setTimeout(() => {
+        const rect = floatRoot.getBoundingClientRect();
+        const expectedRight = parseFloat(floatRoot.style.right) || 18;
+        const expectedBottom = parseFloat(floatRoot.style.bottom) || 18;
+        const expectedLeft = window.innerWidth - expectedRight - rect.width;
+        const expectedTop = window.innerHeight - expectedBottom - rect.height;
+        const leftDrift = rect.left - expectedLeft;
+        const topDrift = rect.top - expectedTop;
+        if (Math.abs(leftDrift) > 2 || Math.abs(topDrift) > 2) {
+          console.warn('[NAD-DEBUG] ★ fixed 定位异常！getBoundingClientRect 与预期不符',
+            '\n  预期 left/top:', expectedLeft.toFixed(1), expectedTop.toFixed(1),
+            '\n  实际 left/top:', rect.left.toFixed(1), rect.top.toFixed(1),
+            '\n  漂移量 left/top:', leftDrift.toFixed(1), topDrift.toFixed(1),
+            '\n  开始检查祖先元素的 containing block 破坏属性...');
+
+          // 检查祖先元素是否破坏了 fixed 定位的包含块
+          const BREAKING_PROPS = ['transform', 'filter', 'backdropFilter', 'willChange', 'contain', 'perspective', 'translate', 'rotate', 'scale', 'offset'];
+          let el = floatRoot.parentElement;
+          let depth = 0;
+          while (el && depth < 20) {
+            const cs = getComputedStyle(el);
+            const breakers = [];
+            for (const prop of BREAKING_PROPS) {
+              let val = cs[prop];
+              if (val && val !== 'none' && val !== 'auto' && val !== 'normal') {
+                if (prop === 'transform' && (val === 'none' || val.startsWith('matrix(1,0,0,1,0,0)'))) continue;
+                if (prop === 'willChange' && val === 'auto') continue;
+                breakers.push(`  ${prop}: ${val}`);
+              }
+            }
+            if (breakers.length) {
+              console.warn('[NAD-DEBUG]   祖先[' + depth + '] <' + el.tagName.toLowerCase()
+                + (el.id ? '#' + el.id : '')
+                + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').slice(0,2).join('.') : '')
+                + '> 破坏 fixed 包含块:',
+                '\n' + breakers.join('\n'),
+                '\n  该元素 rect:', (() => { const r = el.getBoundingClientRect(); return `${r.left},${r.top} ${r.width}x${r.height}`; })());
+            }
+            el = el.parentElement;
+            depth++;
+          }
+        }
+      }, 100);
     } else {
       console.debug('[NPC 自主导演] 悬浮窗 HTML 为空（floatingWindowEnabled=%s, enabledRoles=%d）',
         settings.floatingWindowEnabled, state.roles.filter(r => r.enabled).length);
@@ -2745,7 +2790,7 @@ function updateFloatDrag(event) {
   container.style.top = `${clamped.y}px`;
   container.style.right = 'auto';
   container.style.bottom = 'auto';
-  container.__nadInternalUpdate = false;
+  setTimeout(() => { container.__nadInternalUpdate = false; }, 0);
   console.trace('[NAD-DEBUG] updateFloatDrag() 修改定位',
     '\n  修改前 left/top:', prevLeft, prevTop,
     '\n  nextX/Y:', nextX, nextY,
