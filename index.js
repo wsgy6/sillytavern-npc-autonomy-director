@@ -2259,9 +2259,12 @@ function getFloatSize() {
 function setFloatPosition(position) {
   try {
     if (!position) {
+      console.trace('[NAD-DEBUG] setFloatPosition() 清空位置');
       localStorage.removeItem(FLOAT_POSITION_KEY);
       return;
     }
+    console.trace('[NAD-DEBUG] setFloatPosition() 保存位置:', position,
+      '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight);
     localStorage.setItem(FLOAT_POSITION_KEY, JSON.stringify(position));
   } catch {
   }
@@ -2293,19 +2296,13 @@ function getFloatCssVars(settings = getSettings()) {
 // 返回定位样式，用于外层容器 #npc-autonomy-director-float
 // 必须内联 position:fixed 和 z-index，防止 CSS 文件延迟加载导致容器不可见
 function getFloatContainerStyle(settings = getSettings()) {
-  const DEFAULT_FLOAT_STYLE = 'position:fixed; z-index:4200; left:auto; top:auto; right:18px; bottom:18px;';
   const position = getFloatPosition();
-  if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
-    return DEFAULT_FLOAT_STYLE;
-  }
-  // 使用 clampFloatPosition 对恢复的坐标做视口边界保护，
-  // 传入 null 作为元素引用，内部会使用默认宽高（360×120）计算边界
-  const clamped = clampFloatPosition(position.x, position.y, null);
-  if (!Number.isFinite(clamped.x) || !Number.isFinite(clamped.y) || clamped.x < 0 || clamped.y < 0) {
-    // 坐标异常（NaN / Infinity / 负数），直接回退到默认定位
-    return DEFAULT_FLOAT_STYLE;
-  }
-  return `position:fixed; z-index:4200; left:${clamped.x}px; top:${clamped.y}px; right:auto; bottom:auto;`;
+  const posStyle = (position && typeof position.x === 'number' && typeof position.y === 'number')
+    ? `left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`
+    : 'left:auto; top:auto; right:18px; bottom:18px;';
+  const result = `position:fixed; z-index:4200; ${posStyle}`;
+  console.trace('[NAD-DEBUG] getFloatContainerStyle() 返回 cssText:', result, 'position:', position);
+  return result;
 }
 
 function ensurePanelMount() {
@@ -2327,10 +2324,12 @@ function ensureFloatMount() {
     root.id = FLOAT_PANEL_ID;
     // 设置默认内联样式，确保即使 CSS 文件延迟加载容器也有基本定位
     root.style.cssText = 'position:fixed; z-index:4200; right:18px; bottom:18px;';
+    console.trace('[NAD-DEBUG] ensureFloatMount() 创建新元素，cssText=', root.style.cssText);
     document.body.append(root);
   }
   // 确保元素仍在 body 中（可能被 ST 内部机制移除了）
   if (!root.parentElement) {
+    console.trace('[NAD-DEBUG] ensureFloatMount() 元素被移出 DOM，重新 append');
     document.body.append(root);
   }
   return root;
@@ -2459,9 +2458,20 @@ async function renderFloatingWidgets() {
   if (floatRoot) {
     const html = createFloatingHtml(state, settings);
     if (html) {
+      const prevCssText = floatRoot.style.cssText;
+      const prevLeft = floatRoot.style.left;
+      const prevTop = floatRoot.style.top;
+      const prevRight = floatRoot.style.right;
+      const prevBottom = floatRoot.style.bottom;
       floatRoot.innerHTML = html;
       // 定位样式作用于外层 position:fixed 容器，不作用于内层 position:relative 的 .npcad-float
       floatRoot.style.cssText = getFloatContainerStyle(settings);
+      console.trace('[NAD-DEBUG] renderFloatingWidgets() 设置 cssText',
+        '\n  设置前 cssText:', prevCssText,
+        '\n  设置前 left/right/top/bottom:', prevLeft, prevRight, prevTop, prevBottom,
+        '\n  设置后 cssText:', floatRoot.style.cssText,
+        '\n  设置后 left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom,
+        '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight);
     } else {
       console.debug('[NPC 自主导演] 悬浮窗 HTML 为空（floatingWindowEnabled=%s, enabledRoles=%d）',
         settings.floatingWindowEnabled, state.roles.filter(r => r.enabled).length);
@@ -2684,16 +2694,13 @@ function closeModal() {
 }
 
 function clampFloatPosition(x, y, element) {
-  // 防御：NaN / Infinity / 负数一律视为 0，后续由调用方决定是否回退到默认定位
-  const safeX = Number.isFinite(x) && x >= 0 ? x : 0;
-  const safeY = Number.isFinite(y) && y >= 0 ? y : 0;
   const width = element?.offsetWidth || 360;
   const height = element?.offsetHeight || 120;
   const maxX = Math.max(12, window.innerWidth - width - 12);
   const maxY = Math.max(12, window.innerHeight - height - 12);
   return {
-    x: clamp(safeX || 12, 12, maxX),
-    y: clamp(safeY || 12, 12, maxY),
+    x: clamp(Number(x) || 12, 12, maxX),
+    y: clamp(Number(y) || 12, 12, maxY),
   };
 }
 
@@ -2711,6 +2718,10 @@ function beginFloatDrag(event) {
     originX: rect.left,
     originY: rect.top,
   };
+  console.trace('[NAD-DEBUG] beginFloatDrag() 拖拽开始',
+    '\n  container.style.left/right/top/bottom:', container.style.left, container.style.right, container.style.top, container.style.bottom,
+    '\n  getBoundingClientRect:', rect.left, rect.top, rect.width, rect.height,
+    '\n  event.clientX/Y:', event.clientX, event.clientY);
   event.preventDefault();
   handle.setPointerCapture(event.pointerId);
 }
@@ -2723,10 +2734,17 @@ function updateFloatDrag(event) {
   const nextX = floatDragState.originX + (event.clientX - floatDragState.pointerX);
   const nextY = floatDragState.originY + (event.clientY - floatDragState.pointerY);
   const clamped = clampFloatPosition(nextX, nextY, floatPanel || container);
+  const prevLeft = container.style.left;
+  const prevTop = container.style.top;
   container.style.left = `${clamped.x}px`;
   container.style.top = `${clamped.y}px`;
   container.style.right = 'auto';
   container.style.bottom = 'auto';
+  console.trace('[NAD-DEBUG] updateFloatDrag() 修改定位',
+    '\n  修改前 left/top:', prevLeft, prevTop,
+    '\n  nextX/Y:', nextX, nextY,
+    '\n  clamped:', clamped.x, clamped.y,
+    '\n  修改后 left/top:', container.style.left, container.style.top);
 }
 
 function endFloatDrag() {
@@ -2734,7 +2752,12 @@ function endFloatDrag() {
   const container = document.getElementById(FLOAT_PANEL_ID);
   if (container) {
     const rect = container.getBoundingClientRect();
-    setFloatPosition(clampFloatPosition(rect.left, rect.top, container));
+    const clamped = clampFloatPosition(rect.left, rect.top, container);
+    console.trace('[NAD-DEBUG] endFloatDrag() 保存位置',
+      '\n  rect.left/top:', rect.left, rect.top,
+      '\n  clamped:', clamped.x, clamped.y,
+      '\n  container.style.left/top:', container.style.left, container.style.top);
+    setFloatPosition(clamped);
   }
   floatDragState = null;
 }
@@ -2783,6 +2806,23 @@ function interceptFloatEvents() {
   floatRoot.addEventListener('click', event => event.stopPropagation(), true);
   floatRoot.addEventListener('pointerdown', event => event.stopPropagation(), true);
   floatRoot.addEventListener('pointerup', event => event.stopPropagation(), true);
+
+  // 诊断：MutationObserver 监控外部代码对 style 属性的修改
+  if (!floatRoot.__nadStyleObserver) {
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'style') {
+          console.trace('[NAD-DEBUG] MutationObserver 检测到外部代码修改了 #npc-autonomy-director-float 的 style 属性!',
+            '\n  当前 cssText:', floatRoot.style.cssText,
+            '\n  当前 left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom,
+            '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight);
+        }
+      }
+    });
+    observer.observe(floatRoot, { attributes: true, attributeFilter: ['style'] });
+    floatRoot.__nadStyleObserver = observer;
+    console.log('[NAD-DEBUG] MutationObserver 已挂载到 #npc-autonomy-director-float，监控 style 属性变更');
+  }
 }
 
 
