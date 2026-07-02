@@ -2259,12 +2259,9 @@ function getFloatSize() {
 function setFloatPosition(position) {
   try {
     if (!position) {
-      console.trace('[NAD-DEBUG] setFloatPosition() 清空位置');
       localStorage.removeItem(FLOAT_POSITION_KEY);
       return;
     }
-    console.trace('[NAD-DEBUG] setFloatPosition() 保存位置:', position,
-      '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight);
     localStorage.setItem(FLOAT_POSITION_KEY, JSON.stringify(position));
   } catch {
   }
@@ -2303,21 +2300,14 @@ function getFloatCssVars(settings = getSettings()) {
 function getFloatContainerStyle(settings = getSettings()) {
   const position = getFloatPosition();
   if (position && typeof position.x === 'number' && typeof position.y === 'number') {
-    const result = `position:fixed; z-index:4200; left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`;
-    console.trace('[NAD-DEBUG] getFloatContainerStyle() 恢复已保存位置:', result, 'position:', position);
-    return result;
+    return `position:fixed; z-index:4200; left:${position.x}px; top:${position.y}px; right:auto; bottom:auto;`;
   }
   // 无保存位置 → 默认右下角：用 JS 基于 window 尺寸计算 left/top 像素值
   const panelWidth = 360;
   const panelHeight = 280;
   const left = Math.max(0, window.innerWidth - panelWidth - 18);
   const top = Math.max(0, window.innerHeight - panelHeight - 18);
-  const result = `position:fixed; z-index:4200; left:${left}px; top:${top}px; right:auto; bottom:auto;`;
-  console.trace('[NAD-DEBUG] getFloatContainerStyle() 默认右下角定位:', result,
-    '\n  window:', window.innerWidth, 'x', window.innerHeight,
-    '\n  计算 left:', window.innerWidth, '-', panelWidth, '- 18 =', left,
-    '\n  计算 top:', window.innerHeight, '-', panelHeight, '- 18 =', top);
-  return result;
+  return `position:fixed; z-index:4200; left:${left}px; top:${top}px; right:auto; bottom:auto;`;
 }
 
 function ensurePanelMount() {
@@ -2338,15 +2328,11 @@ function ensureFloatMount() {
     root = document.createElement('div');
     root.id = FLOAT_PANEL_ID;
     // 设置默认内联样式，确保即使 CSS 文件延迟加载容器也有基本定位
-    root.__nadInternalUpdate = true;
     root.style.cssText = 'position:fixed; z-index:4200; left:18px; top:18px; right:auto; bottom:auto;';
-    setTimeout(() => { root.__nadInternalUpdate = false; }, 0);
-    console.trace('[NAD-DEBUG] ensureFloatMount() 创建新元素，cssText=', root.style.cssText);
     document.body.append(root);
   }
   // 确保元素仍在 body 中（可能被 ST 内部机制移除了）
   if (!root.parentElement) {
-    console.trace('[NAD-DEBUG] ensureFloatMount() 元素被移出 DOM，重新 append');
     document.body.append(root);
   }
   return root;
@@ -2475,76 +2461,9 @@ async function renderFloatingWidgets() {
   if (floatRoot) {
     const html = createFloatingHtml(state, settings);
     if (html) {
-      const prevCssText = floatRoot.style.cssText;
-      const prevLeft = floatRoot.style.left;
-      const prevTop = floatRoot.style.top;
-      const prevRight = floatRoot.style.right;
-      const prevBottom = floatRoot.style.bottom;
       floatRoot.innerHTML = html;
       // 定位样式作用于外层 position:fixed 容器，不作用于内层 position:relative 的 .npcad-float
-      floatRoot.__nadInternalUpdate = true;
       floatRoot.style.cssText = getFloatContainerStyle(settings);
-      setTimeout(() => { floatRoot.__nadInternalUpdate = false; }, 0);
-      console.trace('[NAD-DEBUG] renderFloatingWidgets() 设置 cssText',
-        '\n  设置前 cssText:', prevCssText,
-        '\n  设置前 left/right/top/bottom:', prevLeft, prevRight, prevTop, prevBottom,
-        '\n  设置后 cssText:', floatRoot.style.cssText,
-        '\n  设置后 left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom,
-        '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight);
-
-      // 诊断：检查 fixed 定位的包含块是否被祖先元素的 CSS 属性破坏
-      setTimeout(() => {
-        const rect = floatRoot.getBoundingClientRect();
-        // 修复后 style 中始终有显式 left/top 像素值
-        const styleLeft = parseFloat(floatRoot.style.left);
-        const styleTop = parseFloat(floatRoot.style.top);
-        const expectedLeft = Number.isFinite(styleLeft) ? styleLeft : window.innerWidth - 360 - 18;
-        const expectedTop = Number.isFinite(styleTop) ? styleTop : window.innerHeight - 280 - 18;
-        const leftDrift = rect.left - expectedLeft;
-        const topDrift = rect.top - expectedTop;
-        if (Math.abs(leftDrift) > 2 || Math.abs(topDrift) > 2) {
-          console.warn('[NAD-DEBUG] ★ fixed 定位异常！getBoundingClientRect 与预期不符',
-            '\n  预期 left/top:', expectedLeft.toFixed(1), expectedTop.toFixed(1),
-            '\n  实际 left/top:', rect.left.toFixed(1), rect.top.toFixed(1),
-            '\n  漂移量 left/top:', leftDrift.toFixed(1), topDrift.toFixed(1),
-            '\n  开始检查祖先元素的 containing block 破坏属性...');
-
-          // 检查祖先元素是否破坏了 fixed 定位的包含块
-          // 真正会创建新的 fixed 包含块的 CSS 属性：
-          // transform(非identity), filter, backdrop-filter, perspective,
-          // will-change 引用上述属性, contain(paint|layout|strict|content)
-          const BREAKING_PROPS = ['transform', 'filter', 'backdropFilter', 'willChange', 'contain', 'perspective'];
-          // identity matrix 匹配（含空格）
-          const IDENTITY_MATRIX = /^matrix\(\s*1\s*,\s*0\s*,\s*0\s*,\s*1\s*,\s*0\s*,\s*0\s*\)$/;
-          let el = floatRoot.parentElement;
-          let depth = 0;
-          while (el && depth < 20) {
-            const cs = getComputedStyle(el);
-            const breakers = [];
-            for (const prop of BREAKING_PROPS) {
-              let val = cs[prop];
-              if (!val || val === 'none' || val === 'auto' || val === 'normal') continue;
-              // transform: 跳过 identity matrix
-              if (prop === 'transform' && IDENTITY_MATRIX.test(val)) continue;
-              // will-change: 只关心引用了上述破坏属性
-              if (prop === 'willChange' && val === 'auto') continue;
-              // contain: 只关心 strict/content/layout/paint
-              if (prop === 'contain' && !/\b(strict|content|paint|layout)\b/.test(val)) continue;
-              breakers.push(`  ${prop}: ${val}`);
-            }
-            if (breakers.length) {
-              console.warn('[NAD-DEBUG]   祖先[' + depth + '] <' + el.tagName.toLowerCase()
-                + (el.id ? '#' + el.id : '')
-                + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').slice(0,2).join('.') : '')
-                + '> 破坏 fixed 包含块:',
-                '\n' + breakers.join('\n'),
-                '\n  该元素 rect:', (() => { const r = el.getBoundingClientRect(); return `${r.left},${r.top} ${r.width}x${r.height}`; })());
-            }
-            el = el.parentElement;
-            depth++;
-          }
-        }
-      }, 100);
     } else {
       console.debug('[NPC 自主导演] 悬浮窗 HTML 为空（floatingWindowEnabled=%s, enabledRoles=%d）',
         settings.floatingWindowEnabled, state.roles.filter(r => r.enabled).length);
@@ -2791,10 +2710,6 @@ function beginFloatDrag(event) {
     originX: rect.left,
     originY: rect.top,
   };
-  console.trace('[NAD-DEBUG] beginFloatDrag() 拖拽开始',
-    '\n  container.style.left/right/top/bottom:', container.style.left, container.style.right, container.style.top, container.style.bottom,
-    '\n  getBoundingClientRect:', rect.left, rect.top, rect.width, rect.height,
-    '\n  event.clientX/Y:', event.clientX, event.clientY);
   event.preventDefault();
   handle.setPointerCapture(event.pointerId);
 }
@@ -2807,19 +2722,10 @@ function updateFloatDrag(event) {
   const nextX = floatDragState.originX + (event.clientX - floatDragState.pointerX);
   const nextY = floatDragState.originY + (event.clientY - floatDragState.pointerY);
   const clamped = clampFloatPosition(nextX, nextY, floatPanel || container);
-  const prevLeft = container.style.left;
-  const prevTop = container.style.top;
-  container.__nadInternalUpdate = true;
   container.style.left = `${clamped.x}px`;
   container.style.top = `${clamped.y}px`;
   container.style.right = 'auto';
   container.style.bottom = 'auto';
-  setTimeout(() => { container.__nadInternalUpdate = false; }, 0);
-  console.trace('[NAD-DEBUG] updateFloatDrag() 修改定位',
-    '\n  修改前 left/top:', prevLeft, prevTop,
-    '\n  nextX/Y:', nextX, nextY,
-    '\n  clamped:', clamped.x, clamped.y,
-    '\n  修改后 left/top:', container.style.left, container.style.top);
 }
 
 function endFloatDrag() {
@@ -2827,12 +2733,7 @@ function endFloatDrag() {
   const container = document.getElementById(FLOAT_PANEL_ID);
   if (container) {
     const rect = container.getBoundingClientRect();
-    const clamped = clampFloatPosition(rect.left, rect.top, container);
-    console.trace('[NAD-DEBUG] endFloatDrag() 保存位置',
-      '\n  rect.left/top:', rect.left, rect.top,
-      '\n  clamped:', clamped.x, clamped.y,
-      '\n  container.style.left/top:', container.style.left, container.style.top);
-    setFloatPosition(clamped);
+    setFloatPosition(clampFloatPosition(rect.left, rect.top, container));
   }
   floatDragState = null;
 }
@@ -2878,35 +2779,22 @@ function endResizeFloat() {
 function interceptFloatEvents() {
   const floatRoot = document.getElementById(FLOAT_PANEL_ID);
   if (!floatRoot) return;
-  floatRoot.addEventListener('click', event => event.stopPropagation(), true);
-  floatRoot.addEventListener('pointerdown', event => event.stopPropagation(), true);
-  floatRoot.addEventListener('pointerup', event => event.stopPropagation(), true);
 
-  // 诊断：MutationObserver 监控外部代码对 style 属性的修改
-  if (!floatRoot.__nadStyleObserver) {
-    const observer = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.type === 'attributes' && m.attributeName === 'style') {
-          if (floatRoot.__nadInternalUpdate) {
-            // 我们的代码主动修改，记录概要
-            console.log('[NAD-DEBUG] MutationObserver: 内部修改 style',
-              '\n  cssText:', floatRoot.style.cssText,
-              '\n  left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom);
-          } else {
-            // 外部代码修改！打印完整调用栈
-            console.trace('[NAD-DEBUG] MutationObserver: ★★★ 外部代码修改了 style ★★★',
-              '\n  cssText:', floatRoot.style.cssText,
-              '\n  left/right/top/bottom:', floatRoot.style.left, floatRoot.style.right, floatRoot.style.top, floatRoot.style.bottom,
-              '\n  window.innerWidth/Height:', window.innerWidth, window.innerHeight,
-              '\n  getBoundingClientRect():', (() => { const r = floatRoot.getBoundingClientRect(); return `${r.left},${r.top} ${r.width}x${r.height}`; })());
-          }
-        }
-      }
-    });
-    observer.observe(floatRoot, { attributes: true, attributeFilter: ['style'] });
-    floatRoot.__nadStyleObserver = observer;
-    console.log('[NAD-DEBUG] MutationObserver 已挂载，内部修改显示概要，外部修改打印完整 trace');
-  }
+  // 判断事件目标是否属于拖拽手柄或缩放手柄
+  // 这些手柄需要接收 pointer 事件来驱动拖拽/缩放，不能拦截
+  const isDragOrResizeTarget = (event) => {
+    return event.target.closest('[data-float-drag-handle]') || event.target.closest('[data-float-resize-handle]');
+  };
+
+  floatRoot.addEventListener('click', event => {
+    if (!isDragOrResizeTarget(event)) event.stopPropagation();
+  }, true);
+  floatRoot.addEventListener('pointerdown', event => {
+    if (!isDragOrResizeTarget(event)) event.stopPropagation();
+  }, true);
+  floatRoot.addEventListener('pointerup', event => {
+    if (!isDragOrResizeTarget(event)) event.stopPropagation();
+  }, true);
 }
 
 
