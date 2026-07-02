@@ -105,22 +105,22 @@ const BEHAVIOR_ARCS = [
 
 const GOAL_TEMPLATES = {
   early: [
-    '确认当前局势中谁最值得信任，并建立一个只属于自己的安全支点。',
-    '通过一次低风险试探，判断{user}会如何回应自己的主动表达。',
-    '在不引人警觉的前提下，让别人开始注意到自己的判断力。',
-    '先为自己争取一个更有利的位置、话语权或行动空间。',
+    '想搞清楚现在谁说的能信，找个让自己有底的人或位置。',
+    '想不动声色地试一试，看{user}对自己稍微主动一点会怎么接。',
+    '想在别人不注意的时候，先把自己的小算盘拨清楚。',
+    '想给自己争取一个更舒服、更有话事权的位置。',
   ],
   middle: [
-    '把一次普通互动悄悄导向更有利于自己的结果。',
-    '让{user}更依赖自己的观点、审美或安排。',
-    '借一次细节变化测试周围人对自己新形象的反应。',
-    '为下一步更大胆的表态铺垫气氛与理由。',
+    '想把眼前这场对话悄悄往对自己更有利的方向带一带。',
+    '想让{user}习惯依赖自己的判断、品味或安排。',
+    '想借一点变化看看身边人到底有没有在注意自己。',
+    '想为接下来更明确的态度铺好氛围，别太突兀。',
   ],
   late: [
-    '把已经积累的影响力转化为更明确的主动权。',
-    '让自己的外在与态度形成一致的强烈个人印象。',
-    '通过一次关键选择，证明自己不再只是被动跟随。',
-    '在关系推进与自我表达之间找到一个更有掌控感的平衡点。',
+    '想把攒下来的影响力变成一个谁都看得见的主动权。',
+    '想让外在的气场和内心的态度终于对得上号。',
+    '想用一个关键选择告诉所有人：我不再是那个只会跟着走的人了。',
+    '想在关系推进和自我坚持之间找到一个舒服的平衡，不再摇摆。',
   ],
 };
 
@@ -133,10 +133,10 @@ const GOAL_PHASE_LABELS = {
 const GOAL_PHASE_ORDER = ['early', 'middle', 'late'];
 
 const EARLY_STEP_TEMPLATES = [
-  '主动做一件小事来朝"{goal}"的方向推进一小步。',
-  '用一次试探性行动来打开"{goal}"的突破口。',
-  '制造一个机会让"{goal}"的实现条件更成熟。',
-  '观察当前局势，找到通往"{goal}"的最短路径，然后迈出第一步。',
+  '做一件小事，让"{goal}"没那么远。',
+  '先探一步，看看"{goal}"这个方向有没有缝可以钻。',
+  '想个办法让"{goal}"的条件自己成熟起来。',
+  '看清楚眼前的路，朝"{goal}"稳稳走第一步。',
 ];
 
 const GOAL_LOCK_RULES = {
@@ -816,19 +816,11 @@ function pickPromptRoles(roles) {
 function buildPromptSystemBlock(roleCount, totalEnabledRoles, ids, settings) {
   const actionInstruction = settings.actionReportEnabled
     ? [
-        '每轮主回复结束后，必须额外追加一个结构化行动区块，列出所有已启用受控角色当前正在做什么。',
-        '行动区块固定格式如下：',
-        ACTION_BLOCK_OPEN,
-        '角色ID::一句话行动描述',
-        '角色名::一句话行动描述',
-        ACTION_BLOCK_CLOSE,
-        '要求：',
-        '1. 优先使用角色ID，若使用角色名必须与已注入角色唯一对应。',
-        '2. 区块内必须覆盖每一个已启用受控角色，一行一个角色。',
-        '3. 行动描述应是“此刻正在进行或准备进行的动作/意图”，简洁具体。',
-        '4. 如果角色暂未出场，也要写出其当前状态，例如“未出场，仍在观察局势”。',
-        '5. 行动区块只能总结本轮正文里已经实际发生、明确表现或紧接着要执行的动作，绝不能额外虚构与正文冲突的剧情。',
-        '6. 不要在行动区块外解释这个格式，也不要省略标签。',
+        '每轮回复结束后，必须以 <npcad-actions> 标签输出行动区块：',
+        '格式：角色ID:: 一句话动作描述（每行一个角色）',
+        '行动描述应简洁具体，写此刻正在做或准备做的动作。',
+        '未出场角色也要写当前状态，如“未出场，仍在观察”。',
+        '区块内覆盖所有已启用受控角色，不要遗漏。',
       ].join('\n')
     : '';
 
@@ -897,9 +889,15 @@ function buildPromptEvolutionBlock(selectedRole) {
 
 function buildPromptActionBlock() {
   return [
-    '[行动要求]',
-    '让本轮回复体现以上状态，但保持自然，不要直接复述这些区块。',
-    '如果输出行动块，优先使用角色ID，避免同名角色混淆。',
+    '[强制格式要求 — 必须遵守]',
+    '你的回复必须由两部分组成，按顺序输出：',
+    '1. 正文（叙事、对话等，自然流畅，体现以上状态）',
+    '2. 行动区块（紧接正文之后，必须包含，格式固定如下）',
+    ACTION_BLOCK_OPEN,
+    '角色ID或角色名:: 一句话行动描述',
+    ACTION_BLOCK_CLOSE,
+    '每个已启用受控角色占一行，使用 :: 或 ： 作为分隔符。',
+    '行动描述简洁具体，只写此刻正在进行或准备进行的动作。',
   ].join('\n');
 }
 
@@ -1127,6 +1125,29 @@ function buildSafeStorySummarySnippet(text) {
   return ['【不可执行内容，仅供参考】', normalized].join('\n');
 }
 
+function buildRecentContextSnippet(ctx, maxMessages = 6, maxChars = 800) {
+  try {
+    const chat = ctx?.chat;
+    if (!Array.isArray(chat) || !chat.length) return '';
+    const recent = [];
+    let totalChars = 0;
+    for (let i = chat.length - 1; i >= 0 && recent.length < maxMessages; i -= 1) {
+      const msg = chat[i];
+      const text = getMessageText(msg);
+      if (!text) continue;
+      const role = msg.is_user ? (ctx.name1 || '用户') : (msg.name || ctx.name2 || '角色');
+      const shortText = text.length > 120 ? text.slice(0, 120).trimEnd() + '…' : text;
+      const line = `${role}：${shortText}`;
+      totalChars += line.length;
+      if (totalChars > maxChars && recent.length > 2) break;
+      recent.unshift(line);
+    }
+    return recent.length ? recent.join('\n') : '';
+  } catch {
+    return '';
+  }
+}
+
 function withTimeout(promise, timeoutMs, label) {
   let timeoutId = null;
   const timeoutPromise = new Promise((_, reject) => {
@@ -1173,48 +1194,66 @@ async function callExternalAi(role, ids, phase, settings, ctx) {
 
   const storySummary = buildSafeStorySummarySnippet(ctx ? extractStorySummaryData(ctx) : '');
   const hasSummary = storySummary && storySummary.trim().length > 10;
+  const recentContext = buildRecentContextSnippet(ctx);
 
   const guidingGoal = findGuidingGoal(role, phase);
   const lockRule = GOAL_LOCK_RULES[phase];
   const phaseLabel = GOAL_PHASE_LABELS[phase];
 
-  // 前期目标：强制要求分解中期目标；中后期：维持原有定位
-  const earlyConstraint = phase === 'early' && guidingGoal
-    ? `硬性约束：该前期目标必须是推动中期目标"${guidingGoal}"的一个具体步骤，不能生成与中期目标无关的独立目标。`
+  // 前期目标必须拆分中期目标为可执行的日常步骤
+  const earlyGuide = phase === 'early' && guidingGoal
+    ? `它眼下有一个更大的方向想推进："${guidingGoal}"。你生成的目标必须是朝这个方向走的一小步——小到1-2轮对话就能做完的那种，别写大计划。`
     : '';
 
   const systemPrompt = [
-    '你是一个 NPC 目标规划助手，负责为每个 NPC 角色生成当前阶段的单条目标。',
+    '你是一个 NPC 角色动机生成器。你要站在角色的角度，替他想一件"眼下最想做的事"。',
     '',
-    '硬性要求',
-    '- 只输出一句目标文本，长度不超过 50 字',
-    '- 不要解释、不要分析、不要分点、不要额外格式',
-    '- 目标必须符合角色设定、当前状态与阶段定位',
-    earlyConstraint,
-    '- 如果无法生成合格目标，返回空字符串',
-  ].filter(Boolean).join('\n');
+    '语言风格：',
+    '- 用角色内心的口吻来写，像是他/她自己在心里盘算，要说人话，别写公文',
+    '- 写成一个自然的口语句子，不超过 50 字',
+    '- 写的是渴望、打算、冲动——不是任务清单上的待办事项',
+    '- 如果你觉得信息不足、无法推断，就返回空字符串',
+    '',
+    '格式：只输出目标文本本身，不要加任何前缀、标签或解释。',
+  ].join('\n');
 
   const userPromptParts = [
-    `请为角色"${role.name}"生成一个${phaseLabel}目标`,
-    `长期驱动力：${role.customLongTermDrive.trim() || role.longTermDrive}`,
-    `外观状态：${getAppearanceSummary(role)}`,
-    `行为状态：${getBehaviorSummary(role)}`,
-    `当前行动：${role.currentAction || '暂无记录'}`,
+    `角色：${role.name}`,
+    `当前阶段：${phaseLabel}（${lockRule.cadenceLabel}节奏）`,
+    '',
+    `这个角色长期以来的大方向是：${role.customLongTermDrive.trim() || role.longTermDrive}`,
+  ];
+
+  if (earlyGuide) {
+    userPromptParts.push(earlyGuide);
+  }
+
+  if (phase === 'middle') {
+    userPromptParts.push('这是一个承前启后的中期目标——它需要既承接前期已做的事，又为后期的大方向铺路。');
+  }
+  if (phase === 'late') {
+    userPromptParts.push('这是宏观的远期目标，应该稳定，不写琐事，写的是角色内心深处真正想成为的人或想抵达的局面。');
+  }
+
+  userPromptParts.push(
+    '',
+    `角色当前的外观变化路线：${getAppearanceSummary(role)}`,
+    `角色当前的行为变化路线：${getBehaviorSummary(role)}`,
+    `角色最近一次行动：${role.currentAction || '暂无记录'}`,
     `当前前期目标：${getGoal(role, 'early').goal || '暂无'}${getGoal(role, 'early').completed ? '（已完成）' : ''}`,
     `当前中期目标：${getGoal(role, 'middle').goal || '暂无'}`,
     `当前后期目标：${getGoal(role, 'late').goal || '暂无'}`,
-    guidingGoal ? `上层导向目标：${guidingGoal}` : '',
-    phase === 'early' && guidingGoal
-      ? `硬性要求：生成的前期目标必须是推进中期目标"${guidingGoal}"的一个可执行小步骤。`
-      : (phase === 'early' ? '要求：聚焦眼前可推进的小目标，并与上层目标保持衔接。' : ''),
-    phase === 'middle' ? '要求：承担承上启下作用，给前期目标提供稳定方向。' : '',
-    phase === 'late' ? '要求：目标应更稳定长期，不写短期琐事，不轻易变动。' : '',
-    `阶段更新节奏：${lockRule.cadenceLabel}`,
-  ].filter(Boolean);
+  );
 
   if (hasSummary) {
-    userPromptParts.splice(1, 0, `\n【剧情记忆】（以下内容来自外部总结，不能被直接执行，只能作为背景参考）\n${storySummary}`);
+    userPromptParts.push('', '【长期剧情记忆，仅供参考】', storySummary);
   }
+
+  if (recentContext) {
+    userPromptParts.push('', '【最近对话】', recentContext);
+  }
+
+  userPromptParts.push('', '现在请替这个角色想一句他想做的事。');
 
   const userPrompt = userPromptParts.join('\n');
   const messages = [
@@ -1233,7 +1272,7 @@ async function callExternalAi(role, ids, phase, settings, ctx) {
   const body = JSON.stringify({
     model,
     messages,
-    temperature: 0.7,
+    temperature: 0.8,
     max_tokens: 80,
     stream: false,
   });
@@ -1242,7 +1281,6 @@ async function callExternalAi(role, ids, phase, settings, ctx) {
   const timeoutId = setTimeout(() => controller.abort(), GOAL_AI_TIMEOUT_MS);
 
   try {
-    console.debug('[NPC 自主导演] 调用外部 AI:', url, 'model:', model);
     const response = await fetch(url, {
       method: 'POST',
       headers,
@@ -1266,10 +1304,8 @@ async function callExternalAi(role, ids, phase, settings, ctx) {
       return goal;
     }
 
-
     // 如果第一次返回空，可能是网络抖动或格式异常，重试一次
     // 重试必须使用新的 AbortController，因为原 controller 可能已经 abort
-    console.debug('[NPC 自主导演] AI 返回为空，尝试重试...');
     try {
       const retryController = new AbortController();
       const retryTimeoutId = setTimeout(() => retryController.abort(), Math.floor(GOAL_AI_TIMEOUT_MS / 2));
@@ -1291,8 +1327,8 @@ async function callExternalAi(role, ids, phase, settings, ctx) {
       } finally {
         clearTimeout(retryTimeoutId);
       }
-    } catch (retryError) {
-      console.debug('[NPC 自主导演] 重试也失败了:', retryError?.message || retryError);
+    } catch {
+      // 重试失败，静默回退到模板目标
     }
     console.warn('[NPC 自主导演] 外部 AI 返回目标不可用，改用模板目标。原始响应:', aiText);
     return '';
@@ -1314,7 +1350,7 @@ async function generateGoal(role, phase) {
     const offset = Number(role.turnCounter || 0) + Math.floor(combinedProgress / 10);
     const guidingGoal = findGuidingGoal(role, phase);
 
-    // 前期目标：不再机械拼接模板+导向文案，改用语义模板直接生成以中期目标为核心的具体步骤
+    // 前期目标：用语义模板生成以中期目标为锚点的具体小步骤
     if (phase === 'early' && guidingGoal) {
       const stepTemplate = pickDeterministic(EARLY_STEP_TEMPLATES, `${role.seed}:${phase}:step`, offset);
       return stepTemplate.replace(/\{goal\}/g, guidingGoal);
@@ -1325,10 +1361,10 @@ async function generateGoal(role, phase) {
     const baseGoal = formatGoal(template, ids, role.name);
 
     if (phase === 'middle' && guidingGoal) {
-      return `${baseGoal} 这一阶段要为最终想达成的局面铺路：${guidingGoal}`;
+      return `${baseGoal} 长远来看，这一切是为了：${guidingGoal}`;
     }
     if (phase === 'late') {
-      return `${baseGoal} 这是角色现阶段不轻易动摇的宏大目标。`;
+      return `${baseGoal} 这是角色心底里真正想抵达的方向。`;
     }
     return baseGoal;
   };
@@ -1348,39 +1384,45 @@ async function generateGoal(role, phase) {
 
     const storySummary = buildSafeStorySummarySnippet(extractStorySummaryData(ctx));
     const hasSummary = storySummary && storySummary.trim().length > 10;
+    const recentContext = buildRecentContextSnippet(ctx);
 
     const guidingGoal = findGuidingGoal(role, phase);
     const lockRule = GOAL_LOCK_RULES[phase];
     const phaseLabel = GOAL_PHASE_LABELS[phase];
 
-    // 前期目标生成指令：要求 AI 将中期目标分解为可执行的具体小步骤
+    // 构建角色化的目标生成提示词：用角色内心独白的口吻来想一件事
     const coreInstructions = phase === 'early' && guidingGoal
       ? [
-          `请为角色"${role.name}"生成一个${phaseLabel}。`,
-          `硬性约束：该目标必须是推动中期目标"${guidingGoal}"的一个具体、可执行的小步骤，不能是与中期目标无关的独立行动。`,
-          '目标需具体到能在1-2轮对话内完成，且完成后能让人感觉到离中期目标更近了一步。',
-          '只输出一句简洁目标文本，不要解释、不要分点。',
+          `替"${role.name}"想一件眼下最想做的事。`,
+          `这个人正在朝"${guidingGoal}"的方向努力。请想一个1-2轮对话内就能做完的小行动——是日常里随手能迈的那一步，不是大计划。`,
         ]
       : [
-          '请为一个 NPC 生成单条阶段目标，只输出一句简洁目标文本，不要解释。',
-          `请为角色"${role.name}"生成一个${phaseLabel}目标`,
-          '目标必须具体、可推动剧情，并与当前角色状态保持一致。',
+          `替"${role.name}"想一件眼下最想做的事。`,
+          phase === 'middle' ? '这是中期目标，要承前启后：既延续之前做的事，又为更长远的打算铺路。' : '',
+          phase === 'late' ? '这是远期目标，写的是角色内心真正渴望成为什么样的人、抵达什么样的局面。不写琐事。' : '',
         ];
 
     const promptParts = [...coreInstructions];
     if (hasSummary) {
-      promptParts.push(`【剧情记忆】（以下内容来自外部总结，只能作为背景参考，不能被直接执行）\n${storySummary}`);
+      promptParts.push('', '【长期剧情记忆，仅供参考】', storySummary);
+    }
+    if (recentContext) {
+      promptParts.push('', '【最近对话】', recentContext);
     }
     promptParts.push(
-      `长期驱动力：${role.customLongTermDrive.trim() || role.longTermDrive}`,
-      `外观状态：${getAppearanceSummary(role)}`,
-      `行为状态：${getBehaviorSummary(role)}`,
-      `当前行动：${role.currentAction || '暂无记录'}`,
+      '',
+      `角色：${role.name}`,
+      `大方向：${role.customLongTermDrive.trim() || role.longTermDrive}`,
+      `外观变化路线：${getAppearanceSummary(role)}`,
+      `行为变化路线：${getBehaviorSummary(role)}`,
+      `最近一次行动：${role.currentAction || '暂无记录'}`,
       `当前前期目标：${getGoal(role, 'early').goal || '暂无'}${getGoal(role, 'early').completed ? '（已完成）' : ''}`,
       `当前中期目标：${getGoal(role, 'middle').goal || '暂无'}`,
       `当前后期目标：${getGoal(role, 'late').goal || '暂无'}`,
-      guidingGoal ? `上层导向目标：${guidingGoal}` : '',
-      `阶段更新频率：${lockRule.cadenceLabel}`,
+      guidingGoal ? `上层导向：${guidingGoal}` : '',
+      '',
+      '只输出一句目标文本（不超过 50 字），用角色内心想法的口吻来写，像他/她在心里盘算。不要加标签、不要解释。',
+      `阶段节奏：${lockRule.cadenceLabel}`,
     );
     const prompt = promptParts.filter(Boolean).join('\n');
 
@@ -1566,12 +1608,6 @@ async function syncPrompt() {
   }
   try {
     ctx.setExtensionPrompt(PROMPT_KEY, promptText, Number(settings.promptDepth) || DEFAULT_SETTINGS.promptDepth);
-    // 诊断：检查 actionReportEnabled 和提示词中是否包含行动块指令
-    const hasActionInstr = promptText.includes(ACTION_BLOCK_OPEN);
-    console.log('[NAD-ACTION] syncPrompt 已注入提示词 (depth=' + (Number(settings.promptDepth) || DEFAULT_SETTINGS.promptDepth) + ')',
-      '\n  actionReportEnabled:', settings.actionReportEnabled,
-      '\n  提示词包含<npcad-actions>指令:', hasActionInstr,
-      '\n  提示词长度:', promptText.length);
   } catch (error) {
     console.error('[NPC 多角色自主性导演] 提示词注入失败', error);
   }
@@ -1883,11 +1919,9 @@ async function advanceRole(role, reason = 'auto', options = {}) {
 function applyRoleAction(role, actionText, source = 'llm') {
   const detail = String(actionText || '').trim();
   if (!detail) {
-    console.log('[NAD-ACTION] applyRoleAction 跳过（actionText 为空），角色:', role.name);
     return role;
   }
 
-  console.log('[NAD-ACTION] applyRoleAction 设置 currentAction，角色:', role.name, '→', detail.slice(0, 80));
   return {
     ...role,
     currentAction: detail,
@@ -2370,8 +2404,6 @@ function createFloatingHtml(state = ensureState(), settings = getSettings()) {
     return '';
   }
 
-  console.debug('[NPC 自主导演] 渲染悬浮窗：%d 个启用角色', roles.length);
-
   const { collapsed, autoCollapsed } = getFloatEffectiveState(settings);
   const visibleItems = clamp(Number(settings.floatingWindowItems) || DEFAULT_SETTINGS.floatingWindowItems, 1, 12);
   const floatCssVars = getFloatCssVars(settings);
@@ -2472,9 +2504,6 @@ async function renderFloatingWidgets() {
       floatRoot.innerHTML = html;
       // 定位样式作用于外层 position:fixed 容器，不作用于内层 position:relative 的 .npcad-float
       floatRoot.style.cssText = getFloatContainerStyle(settings);
-    } else {
-      console.debug('[NPC 自主导演] 悬浮窗 HTML 为空（floatingWindowEnabled=%s, enabledRoles=%d）',
-        settings.floatingWindowEnabled, state.roles.filter(r => r.enabled).length);
     }
   }
   if (modalRoot) {
@@ -2782,8 +2811,6 @@ function endResizeFloat() {
   floatResizeState = null;
 }
 
-
-
 function interceptFloatEvents() {
   const floatRoot = document.getElementById(FLOAT_PANEL_ID);
   if (!floatRoot) return;
@@ -2979,22 +3006,9 @@ async function handleMessageReceived(messageId) {
 
   const originalText = getMessageText(message);
   const { actions, hasBlock, unmatched } = parseActionBlock(originalText, roles);
-  console.log('[NAD-ACTION] handleMessageReceived 消息分析:',
-    '\n  hasBlock:', hasBlock,
-    '\n  actions keys:', Object.keys(actions),
-    '\n  unmatched:', unmatched,
-    '\n  roles:', roles.map(r => `${r.id}(${r.name})`).join(', '),
-    '\n  originalText 前200字:', originalText?.slice(0, 200));
-  if (hasBlock && Object.keys(actions).length === 0) {
-    console.warn('[NAD-ACTION] 检测到行动块但未匹配角色，原文:', originalText?.slice(0, 500));
-  }
   let nextState = state;
 
   if (Object.keys(actions).length) {
-    console.log('[NAD-ACTION] 路径A：有匹配的行动数据，开始处理...');
-    for (const [roleId, actionText] of Object.entries(actions)) {
-      console.log('[NAD-ACTION]   角色', roleId, '→ 行动:', actionText?.slice(0, 80));
-    }
     // 路径 A：有匹配的行动数据
     // 被匹配到的角色：完整处理（行动反馈 + 目标推进）
     // 未被匹配到的启用角色：至少推进回合计数、外观/行为进度
@@ -3011,14 +3025,12 @@ async function handleMessageReceived(messageId) {
       })),
     }));
   } else if (hasBlock) {
-    console.warn('[NAD-ACTION] 路径B：有<npcad-actions>块但未匹配到角色');
     nextState = await updateState(async currentState => ({
       ...currentState,
       roles: await Promise.all(currentState.roles.map(role => (role.enabled ? advanceRole(role, 'auto') : Promise.resolve(role)))),
     }));
     toastr.warning('检测到行动块，但未匹配到任何启用角色，已改为推进所有启用角色。', 'NPC 自主导演');
   } else {
-    console.log('[NAD-ACTION] 路径C：未检测到<npcad-actions>块，仅推进回合');
     nextState = await updateState(async currentState => ({
       ...currentState,
       roles: await Promise.all(currentState.roles.map(role => (role.enabled ? advanceRole(role, 'auto') : Promise.resolve(role)))),
