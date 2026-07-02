@@ -1308,11 +1308,6 @@ async function generateGoal(role, phase) {
 
   try {
     const settings = getSettings();
-    console.log("[NPC]", {
-    externalAiEnabled: settings.externalAiEnabled,
-    externalAiBaseUrl: settings.externalAiBaseUrl,
-    externalAiModel: settings.externalAiModel,
-});
     const ctx = getContextSafe();
 
     if (settings.externalAiEnabled && settings.externalAiBaseUrl) {
@@ -1343,7 +1338,7 @@ async function generateGoal(role, phase) {
     ].filter(Boolean).join('\n');
 
     const response = await withTimeout(
-      ctx.generateQuietPrompt({ quietPrompt: prompt, trimToSentence: false, removeReasoning: true }),
+      ctx.generateQuietPrompt(prompt, { trimToSentence: false, removeReasoning: true }),
       GOAL_AI_TIMEOUT_MS,
       '静默 AI 生成超时'
     );
